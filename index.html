@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo App</title>
+    <style>
+        body {
+            font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+            line-height: 1.5;
+            font-weight: 400;
+            color-scheme: light dark;
+            color: rgba(255, 255, 255, 0.87);
+            background-color: #242424;
+            margin: 0;
+            display: flex;
+            place-items: center;
+            min-width: 320px;
+            min-height: 100vh;
+        }
+        #app {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+            text-align: center;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        input, button {
+            padding: 0.5rem;
+            font-size: 1rem;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        .task-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .task {
+            padding: 1rem;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            text-align: left;
+        }
+        .task.done {
+            background-color: #333;
+        }
+        .task h2 {
+            margin-top: 0;
+        }
+        .task button {
+            margin-right: 1rem;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .task .toggle-done {
+            background-color: #28a745;
+        }
+    </style>
+</head>
+<body>
+    <h1>Todo App</h1>
+    <div id="app">
+        <form id="task-form">
+            <input type="text" id="title" placeholder="Title" required>
+            <input type="text" id="description" placeholder="Description">
+            <input type="number" id="deadline" placeholder="Deadline (in days)">
+            <button type="submit">Add Task</button>
+        </form>
+        <div id="task-list"></div>
+    </div>
+
+    <script>
+        const taskForm = document.getElementById('task-form');
+        const taskList = document.getElementById('task-list');
+        const titleInput = document.getElementById('title');
+        const descriptionInput = document.getElementById('description');
+        const deadlineInput = document.getElementById('deadline');
+
+        const API_URL = 'http://127.0.0.1:8000';
+
+        async function fetchTasks() {
+            const response = await fetch(`${API_URL}/tasks`);
+            const tasks = await response.json();
+            renderTasks(tasks);
+        }
+
+        function renderTasks(tasks) {
+            taskList.innerHTML = '';
+            tasks.forEach(task => {
+                const taskElement = document.createElement('div');
+                taskElement.classList.add('task');
+                if (task.done) {
+                    taskElement.classList.add('done');
+                }
+                taskElement.innerHTML = `
+                    <h2>${task.title}</h2>
+                    <p>${task.description || ''}</p>
+                    <p>Deadline: ${task.deadline || 'None'}</p>
+                    <p>Status: ${task.done ? 'Done' : 'Not Done'}</p>
+                    <button class="toggle-done">${task.done ? 'Undo' : 'Done'}</button>
+                    <button class="delete">Delete</button>
+                `;
+
+                const deleteButton = taskElement.querySelector('.delete');
+                deleteButton.addEventListener('click', () => deleteTask(task.id));
+
+                const toggleDoneButton = taskElement.querySelector('.toggle-done');
+                toggleDoneButton.addEventListener('click', () => toggleDone(task));
+
+                taskList.appendChild(taskElement);
+            });
+        }
+
+        async function createTask(e) {
+            e.preventDefault();
+            const title = titleInput.value;
+            const description = descriptionInput.value;
+            const deadline = deadlineInput.value;
+
+            const response = await fetch(`${API_URL}/tasks`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title,
+                    description,
+                    deadline: deadline ? parseInt(deadline, 10) : null
+                })
+            });
+            const newTask = await response.json();
+            fetchTasks();
+            taskForm.reset();
+        }
+
+        async function deleteTask(taskId) {
+            await fetch(`${API_URL}/tasks/${taskId}`, { method: 'DELETE' });
+            fetchTasks();
+        }
+
+        async function toggleDone(task) {
+            const updatedTask = { ...task, done: !task.done };
+            await fetch(`${API_URL}/tasks/${task.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updatedTask)
+            });
+            fetchTasks();
+        }
+
+        taskForm.addEventListener('submit', createTask);
+        fetchTasks();
+    </script>
+</body>
+</html>
